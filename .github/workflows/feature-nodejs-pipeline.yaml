@@ -1,6 +1,7 @@
 name: feature-nodejs-pipeline
+
 on:
-  workflow_call: # will be called by someone, should get inputs from caller
+  workflow_call:
     inputs:
       project:
         required: true
@@ -14,15 +15,19 @@ on:
 
 jobs:
   feature-nodejs-pipeline:
-    runs-on: [self-hosted, Linux, X64]
-    steps:
-    - name: checkout code #It downloads (clones) your repository code into the runner
-      uses: actions/checkout@v6
-    - name: list files
-      run: ls -l
+    runs-on:
+      group: Default
+      labels: self-hosted   # IMPORTANT FIX
 
-    - name: print inputs
-      run: | 
-         echo "project name is ${{ inputs.project }}"
-         echo "project component is ${{ inputs.component }}"    
-         echo "project name is ${{ inputs.envronment }}"  
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: List files
+        run: ls -l
+
+      - name: Print inputs
+        run: |
+          echo "project name is ${{ inputs.project }}"
+          echo "project component is ${{ inputs.component }}"
+          echo "environment is ${{ inputs.environment }}"

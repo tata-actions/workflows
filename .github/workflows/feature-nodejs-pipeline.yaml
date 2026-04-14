@@ -16,7 +16,7 @@ jobs:
   feature-nodejs-pipeline:
     runs-on: self-hosted
     steps:
-    - name: checkout code. #It downloads (clones) your repository code into the runner
+    - name: checkout code #It downloads (clones) your repository code into the runner
       uses: actions/checkout@v6
     - name: list files
       run: ls -l

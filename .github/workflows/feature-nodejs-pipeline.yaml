@@ -43,7 +43,17 @@ jobs:
         echo "version: ${APP_VERSION}"
 
     - name: run unit test cases
+      id: unit_tests
       run: echo "no error for test cases"
+
+    - name: Update unit tests status
+      if: always()
+      uses: ../actions/update-commit-status
+      with:
+        sha: ${{ github.sha }}
+        state: ${{ steps.unit_tests.outcome }}     # success / failure / cancelled
+        context: UNIT_TESTS
+        description: ${{ steps.unit_tests.outcome }}  
 
     - name: docker build
       id: docker_build

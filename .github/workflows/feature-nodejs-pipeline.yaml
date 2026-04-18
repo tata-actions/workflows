@@ -1,6 +1,7 @@
 name: feature-nodejs-pipeline
+
 on:
-  workflow_call: # will be called by someone, should get inputs from caller
+  workflow_call:
     inputs:
       project:
         required: true
@@ -11,35 +12,36 @@ on:
       environment:
         required: true
         type: string
+
 env:
-  ACC_ID: 594171188195        
+  ACC_ID: 466089068450        
 
 jobs:
   feature-nodejs-pipeline:
     runs-on: self-hosted
+
     steps:
-    - name: checkout code #It downloads (clones) your repository code into the runner
-      uses: actions/checkout@v6
+    - name: checkout code
+      uses: actions/checkout@v4
+
     - name: list files
       run: ls -l
 
     - name: print inputs
       run: | 
-         echo "project name is ${{ inputs.project }}"
-         echo "project component is ${{ inputs.component }}"    
-         echo "project name is ${{ inputs.environment }}"  
+        echo "project name is ${{ inputs.project }}"
+        echo "project component is ${{ inputs.component }}"    
+        echo "environment is ${{ inputs.environment }}"  
 
     - name: install dependency
       run: npm install
-    # we are geting version like commit id first 9 char
+
     - name: get the version
       run: |
-        # if you store it in GITHUB_ENV, you can use in other steps in the same job
         echo "APP_VERSION=${GITHUB_SHA::9}" >> "$GITHUB_ENV"
 
-    - name: print inputs
+    - name: print version
       run: |
-        echo ${{ inputs.project }}
         echo "version: ${APP_VERSION}"
 
     - name: run unit test cases
@@ -50,11 +52,10 @@ jobs:
       if: always()
       uses: tata-actions/workflows/.github/actions/update-commit-status@main
       with:
-        # we will pass input to action.yaml (function which proces and call api and update status)
         sha: ${{ github.sha }}
-        state: ${{ steps.unit_tests.outcome }}     # success / failure / cancelled
+        state: ${{ steps.unit_tests.outcome }}
         context: UNIT_TESTS
-        description: ${{ steps.unit_tests.outcome }}  
+        description: ${{ steps.unit_tests.outcome }}
 
     - name: docker build
       id: docker_build
@@ -64,22 +65,57 @@ jobs:
 
     - name: Update docker build status
       if: always()
-      uses: tata-actions/workflows/.github/actions/update-commit-status@main # here will github api and update status against tht commit id
+      uses: tata-actions/workflows/.github/actions/update-commit-status@main
       with:
-        # we will pass input to action.yaml (function which process and call api and update status)
         sha: ${{ github.sha }}
-        state: ${{ steps.unit_tests.outcome }}     # success / failure / cancelled
+        state: ${{ steps.docker_build.outcome }}   # FIXED (was wrong earlier)
         context: DOCKER_BUILD
-        description: ${{ steps.unit_tests.outcome }}  
+        description: ${{ steps.docker_build.outcome }}
 
+    # SECURITY STEP FIXED
     - name: Security Check (Dependabot + Trivy)
       id: security_check
-      # env:
-      #   GH_TOKEN: ${{ secrets.GH_TOKEN }}
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_API: https://api.github.com
+        FULL_REPO: ${{ github.repository }}
       run: |
 
-        echo "🔍 Running Trivy scan..."
+        echo "Fetching Dependabot alerts..."
+
+        response=$(curl -s \
+          -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+          -H "Accept: application/vnd.github+json" \
+          "${GITHUB_API}/repos/${FULL_REPO}/dependabot/alerts?per_page=100")
+
+        echo "${response}" > dependabot_alerts.json
+
+        high_critical_open_count=$(echo "${response}" | jq '[.[] 
+          | select(
+              .state == "open" and 
+              (.security_advisory.severity == "high" or .security_advisory.severity == "critical")
+          )
+        ] | length')
+
+        echo "Open HIGH/CRITICAL Dependabot alerts: ${high_critical_open_count}"
+
+        if [ "${high_critical_open_count}" -gt 0 ]; then
+          echo "❌ Blocking pipeline due to OPEN HIGH/CRITICAL Dependabot alerts"
+          echo "Affected dependencies:"
+
+          echo "${response}" | jq '.[] 
+            | select(.state=="open" and 
+            (.security_advisory.severity=="high" or .security_advisory.severity=="critical"))
+            | {dependency: .dependency.package.name, severity: .security_advisory.severity, advisory: .security_advisory.summary}'
+
+          exit 1
+        else
+          echo "✅ No OPEN HIGH/CRITICAL Dependabot alerts found"
+        fi
+
+        echo "Running Trivy scan..."
+
         trivy image \
           --scanners vuln \
           --severity HIGH,CRITICAL,MEDIUM \
@@ -88,34 +124,23 @@ jobs:
           --format table \
           ${ACC_ID}.dkr.ecr.us-east-1.amazonaws.com/${{ inputs.project }}/${{ inputs.component }}:${APP_VERSION}
 
-        TRIVY_RESULT=$?
-
-        if [ "$TRIVY_RESULT" -ne 0 ]; then
-          echo "❌ Trivy found vulnerabilities (HIGH/CRITICAL/MEDIUM)"
-          exit 1
-        fi
-
-        echo "✅ Trivy scan passed without blocking issues."
-
     - name: Update scan status
       if: always()
       uses: tata-actions/workflows/.github/actions/update-commit-status@main
       with:
         sha: ${{ github.sha }}
-        state: ${{ steps.security_check.outcome }}     # success / failure / cancelled
+        state: ${{ steps.security_check.outcome }}
         context: SECURITY_CHECK
-        description: ${{ steps.security_check.outcome }}        
+        description: ${{ steps.security_check.outcome }}
 
-
-    # reusable workflow cant access sectrects directly we providing again
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v5.1.1
       with:
-          aws-region: us-east-1
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}       
+        aws-region: us-east-1
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
     - name: docker push to ecr
-      run : |
-         aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${ACC_ID}.dkr.ecr.us-east-1.amazonaws.com       
-         docker push ${ACC_ID}.dkr.ecr.us-east-1.amazonaws.com/${{ inputs.project }}/${{ inputs.component }}:${APP_VERSION}
+      run: |
+        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${ACC_ID}.dkr.ecr.us-east-1.amazonaws.com       
+        docker push ${ACC_ID}.dkr.ecr.us-east-1.amazonaws.com/${{ inputs.project }}/${{ inputs.component }}:${APP_VERSION}

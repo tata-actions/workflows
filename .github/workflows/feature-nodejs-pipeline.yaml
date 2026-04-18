@@ -14,7 +14,11 @@ on:
         type: string
 
 env:
-  ACC_ID: 466089068450        
+  ACC_ID: 466089068450   
+
+permissions:
+  contents: read
+  security-events: read       
 
 jobs:
   feature-nodejs-pipeline:

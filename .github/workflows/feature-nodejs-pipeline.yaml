@@ -15,7 +15,8 @@ on:
 
 permissions:
   contents: read
-  security-events: read   # REQUIRED for Dependabot
+  security-events: read 
+  statuses: write   # REQUIRED for Dependabot
 
 env:
   ACC_ID: 466089068450        
@@ -83,9 +84,8 @@ jobs:
     # ✅ Install Trivy (RHEL)
     - name: Install Trivy
       run: |
-        sudo yum install -y wget
-        wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_Linux-64bit.rpm
-        sudo rpm -ivh trivy_Linux-64bit.rpm
+        sudo yum install -y curl
+        curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
 
     # ✅ Security Gate
     - name: Security Check (Dependabot + Trivy)

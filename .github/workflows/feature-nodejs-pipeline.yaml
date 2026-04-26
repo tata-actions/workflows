@@ -72,7 +72,7 @@ jobs:
         context: DOCKER_BUILD
         description: ${{ steps.unit_tests.outcome }}  
 
-    - name: Security Check (Dependabot + Trivy)
+    - name: Security Check  (Trivy)
       id: security_check
       # env:
       #   GH_TOKEN: ${{ secrets.GH_TOKEN }}

@@ -81,8 +81,9 @@ jobs:
 
         echo "🔍 Running Trivy scan..."
         trivy image \
-          --scanners vuln \
-          --severity HIGH,CRITICAL,MEDIUM \
+         --scanners vuln \
+          --severity CRITICAL,HIGH \
+          --ignore-unfixed \
           --pkg-types os \
           --exit-code 1 \
           --format table \

@@ -109,7 +109,7 @@ jobs:
 
     # reusable workflow cant access sectrects directly we providing again
     - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v5.1.1. # it is like plugin an action used for reusable workflow
+      uses: aws-actions/configure-aws-credentials@v5.1.1 # it is like plugin an action used for reusable workflow
       with:
           aws-region: us-east-1
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}

@@ -100,7 +100,7 @@ jobs:
     - name: deploy to DEV cluster
       id: dev_deploy
       run:
-        "helm upgrade --install ${{ inputs.component}} -f valules-${{ inputs.environment }}.yaml -n ${{ inputs.project }} --set deployment.imageVersion=${APP_VERSION} --atomic --wait --timeout=5m ."
+        "helm upgrade --install ${{ inputs.component}} -n ${{ inputs.project }} --set deployment.imageVersion=${APP_VERSION} --atomic --wait --timeout=5m ."
 
     - name: Update DEV Deploy status
       if: always()

@@ -130,7 +130,7 @@ jobs:
     - name: checkout code #It downloads (clones) your repository code into the runner
       uses: actions/checkout@v6
       with:
-         repository: tata-actions/${{ inputs.project }}/-${{ inputs.component }}-deploys     
+         repository: tata-actions/${{ inputs.project }}-${{ inputs.component }}-deploys     
 
     - name: deploy to DEV cluster
       id: dev_deploy
